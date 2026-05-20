@@ -1,0 +1,102 @@
+name: PR preview (image)
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          persist-credentials: false
+
+      - name: Preview image reference
+        id: preview
+        run: |
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "repository=${REGISTRY}/${repo}" >> "${GITHUB_OUTPUT}"
+
+      # nosemgrep
+      - uses: tapclap/build-images-action@main
+        id: build-images
+        with:
+          registry: ${{ env.REGISTRY }}
+          registry-user: ${{ github.repository_owner }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          tag: pr-{{ pr }}-{{ dateTime }}-{{ ref }}-{{ commit }}
+          operation: build-and-push
+          build-opts: |
+            - name: fbi-uploader
+              repo-image-name: true
+
+      - name: Post deploy comment
+        uses: actions/github-script@main
+        with:
+          script: |
+            const pr = context.payload.pull_request.number;
+            const images = JSON.parse(`${{ toJSON(steps.build-images.outputs.pushed-images) }}`);
+            const image = images[0] ?? `${{ steps.preview.outputs.repository }}:pr-${pr}`;
+            const body = [
+              `## Preview build (PR #${pr})`,
+              '',
+              'Собран временный образ для проверки этого PR. После закрытия PR тег будет удалён из GHCR.',
+              '',
+              '| Артефакт | Значение |',
+              '|----------|----------|',
+              `| Container image | \`${image}\` |`,
+              '',
+              '### Пример запуска',
+              '',
+              '```bash',
+              'docker run --rm \\',
+              '  -e FB_APP_ID=... \\',
+              '  -e FB_USER_ACCESS_TOKEN=... \\',
+              '  -e FBINSTANT_ZIP_PATH=/data/game.zip \\',
+              '  -e CONFIG_JSON_FILE=/data/config.json \\',
+              '  -v "$(pwd)/build:/data:ro" \\',
+              `  ${image}`,
+              '```',
+            ].join('\n');
+
+            const marker = '<!-- fbi-uploader-pr-preview -->';
+            const fullBody = marker + '\n' + body;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+            });
+
+            const existing = comments.find((c) =>
+              c.user.type === 'Bot' && c.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: fullBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body: fullBody,
+              });
+            }

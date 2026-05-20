@@ -1,0 +1,10 @@
+# Ignore everything by default and re-include only needed files.
+**
+
+!**/*.go
+**/*_test.go
+
+!go.mod
+!go.sum
+
+!docker/
