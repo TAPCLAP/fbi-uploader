@@ -20,6 +20,7 @@ RUN apk add --no-cache ca-certificates
 FROM scratch
 
 COPY --from=certificates /etc/ssl /etc/ssl
+COPY --from=certificates /tmp /tmp
 COPY --from=builder /out/fbi-uploader /fbi-uploader
 
 ENTRYPOINT ["/fbi-uploader"]
