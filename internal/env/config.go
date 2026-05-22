@@ -99,7 +99,7 @@ func loadConfigJSON() (string, error) {
 		}
 		return string(data), nil
 	default:
-		return "", errors.New("required: set CONFIG_JSON or CONFIG_JSON_FILE")
+		return "", nil
 	}
 }
 

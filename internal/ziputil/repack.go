@@ -63,10 +63,12 @@ func packWithConfig(tempDir, configJSON string) (outZip string, release func(), 
 		_ = os.RemoveAll(tempDir)
 	}
 
-	configPath := filepath.Join(tempDir, "config.json")
-	if err := os.WriteFile(configPath, []byte(configJSON), 0o644); err != nil {
-		removeTempDir()
-		return "", nil, fmt.Errorf("write config.json: %w", err)
+	if configJSON != "" {
+		configPath := filepath.Join(tempDir, "config.json")
+		if err := os.WriteFile(configPath, []byte(configJSON), 0o644); err != nil {
+			removeTempDir()
+			return "", nil, fmt.Errorf("write config.json: %w", err)
+		}
 	}
 
 	outZip = filepath.Join(os.TempDir(), fmt.Sprintf("fbinstant-%s.zip", time.Now().UTC().Format("20060102150405")))

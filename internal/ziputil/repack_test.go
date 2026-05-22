@@ -81,6 +81,57 @@ func TestRepackWithConfig(t *testing.T) {
 	}
 }
 
+func TestRepackWithoutConfig(t *testing.T) {
+	srcDir := t.TempDir()
+	srcZip := filepath.Join(srcDir, "game.zip")
+	createTestZip(t, srcZip, map[string]string{
+		"index.html": "<html></html>",
+	})
+
+	outZip, cleanup, err := RepackWithConfig(srcZip, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	r, err := zip.OpenReader(outZip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		if f.Name == "config.json" {
+			t.Fatal("repacked zip should not contain config.json")
+		}
+	}
+}
+
+func TestPackDirWithoutConfig(t *testing.T) {
+	srcDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(srcDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	outZip, cleanup, err := PackDirWithConfig(srcDir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	r, err := zip.OpenReader(outZip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		if f.Name == "config.json" {
+			t.Fatal("packed zip should not contain config.json")
+		}
+	}
+}
+
 func TestPackDirWithConfig(t *testing.T) {
 	srcDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(srcDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {

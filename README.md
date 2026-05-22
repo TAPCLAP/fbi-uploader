@@ -94,7 +94,7 @@ export FB_APP_SECRET=your-app-secret
 ## `fbi-uploader`
 
 1. Берёт исходный бандл из `FBINSTANT_ZIP_PATH` (zip-файл) **или** `FBINSTANT_ZIP_PATH_DIR` (папка с файлами). Исходные пути не изменяются.
-2. Копирует содержимое во временную директорию (распаковка zip или копирование папки), добавляет `config.json` в корень архива, собирает новый zip в `/tmp/`.
+2. При заданном `CONFIG_JSON` или `CONFIG_JSON_FILE` копирует содержимое во временную директорию (распаковка zip или копирование папки), добавляет `config.json` в корень архива и собирает новый zip в `/tmp/`. Без config — zip загружается как есть, папка упаковывается в zip без `config.json`.
 3. Создаёт сессию загрузки и отправляет файл на `rupload.facebook.com` с **user** access token.
 4. При `PUSH_TO_PRODUCTION=true` пушит бандл в production (нужен **app** access token).
 
@@ -107,7 +107,6 @@ export FB_APP_SECRET=your-app-secret
 | `FB_APP_ID` | Meta App ID (URL `/uploads` и авторизация при push) |
 | `FB_USER_ACCESS_TOKEN` | User access token для `/uploads` и rupload ([Access Token Tool](https://developers.facebook.com/tools/accesstoken), Web Hosting → Get Asset Upload Access Token) |
 | `FBINSTANT_ZIP_PATH` **или** `FBINSTANT_ZIP_PATH_DIR` | Путь к исходному `.zip` или к папке с файлами бандла (задаётся ровно одна переменная) |
-| `CONFIG_JSON` **или** `CONFIG_JSON_FILE` | JSON inline или путь к содержимому `config.json` (должна быть задана ровно одна переменная) |
 
 ### Переменные окружения — только при `PUSH_TO_PRODUCTION=true`
 
@@ -121,7 +120,9 @@ export FB_APP_SECRET=your-app-secret
 
 app access token обычно возвращется в формате `GG|APP_ID|TOKEN`. Не знаю почему, но `GG|` надо убрать, иначе не работает. То есть для автоматического пуша в продакшн, нужен токен такого вида: `FB_APP_ACCESS_TOKEN=APP_ID|TOKEN`
 
-### config.json
+### config.json (опционально)
+
+Если ни `CONFIG_JSON`, ни `CONFIG_JSON_FILE` не заданы, `config.json` в архив не добавляется.
 
 Либо:
 

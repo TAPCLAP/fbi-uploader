@@ -27,10 +27,19 @@ func run() int {
 
 	var repackedZip string
 	var cleanup func()
-	if cfg.ZipPathDir != "" {
-		logger.Info("packing directory with config.json", slog.String("source", cfg.ZipPathDir))
+	switch {
+	case cfg.ConfigJSON == "" && cfg.ZipPath != "":
+		logger.Info("using bundle zip as-is", slog.String("source", cfg.ZipPath))
+		repackedZip = cfg.ZipPath
+		cleanup = func() {}
+	case cfg.ZipPathDir != "":
+		if cfg.ConfigJSON != "" {
+			logger.Info("packing directory with config.json", slog.String("source", cfg.ZipPathDir))
+		} else {
+			logger.Info("packing directory", slog.String("source", cfg.ZipPathDir))
+		}
 		repackedZip, cleanup, err = ziputil.PackDirWithConfig(cfg.ZipPathDir, cfg.ConfigJSON)
-	} else {
+	default:
 		logger.Info("repacking zip with config.json", slog.String("source", cfg.ZipPath))
 		repackedZip, cleanup, err = ziputil.RepackWithConfig(cfg.ZipPath, cfg.ConfigJSON)
 	}

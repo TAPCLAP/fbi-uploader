@@ -91,6 +91,23 @@ func TestLoadUploaderConfig_bothBundleSources(t *testing.T) {
 	}
 }
 
+func TestLoadUploaderConfig_noConfigJSON(t *testing.T) {
+	t.Setenv("FB_APP_ID", "123")
+	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
+	t.Setenv("FBINSTANT_ZIP_PATH", "/tmp/x.zip")
+	os.Unsetenv("CONFIG_JSON")
+	os.Unsetenv("CONFIG_JSON_FILE")
+	t.Setenv("PUSH_TO_PRODUCTION", "false")
+
+	cfg, err := LoadUploaderConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.ConfigJSON != "" {
+		t.Fatalf("expected empty config JSON, got %q", cfg.ConfigJSON)
+	}
+}
+
 func TestLoadUploaderConfig_noPushWithoutAppToken(t *testing.T) {
 	t.Setenv("FB_APP_ID", "123")
 	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
