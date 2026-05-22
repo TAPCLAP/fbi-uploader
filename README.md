@@ -135,6 +135,28 @@ export CONFIG_JSON='{"backendUrl":"https://api.example.com","cdn":"/"}'
 export CONFIG_JSON_FILE=./config.stand.json
 ```
 
+### Файл переменных сборки (опционально)
+
+Если задан `BUILD_ENV_PATH`, утилита читает файл с парами `KEY=VALUE` (как в `.env`) и подставляет их в окружение **до** чтения остальных настроек. Уже заданные в shell переменные не перезаписываются.
+
+Поддерживаются пустые строки, комментарии `# ...`, префикс `export` и значения в кавычках `"..."` / `'...'`.
+
+Пример `build.env`:
+
+```bash
+COMMENT_AREA=stand
+COMMENT_COMMIT=abc123
+COMMENT_REF=main
+```
+
+Запуск:
+
+```bash
+export BUILD_ENV_PATH=./build.env
+export FB_APP_ID=...
+./fbi-uploader
+```
+
 ### Комментарий к бандлу (опционально)
 
 Попадает в заголовок rupload `comment`. Добавляются только непустые переменные:
@@ -163,6 +185,7 @@ area: stand, backend_url: https://api.example.dev, commit: abc123, ref: main, cd
 | `FB_API_RETRIES` | `10` | Максимальное число попыток HTTP-запроса к Facebook API при сетевых ошибках (timeout, разрыв соединения и т.п.) и ответах 5xx. Для upload бандла каждая попытка создаёт новую upload-сессию |
 | `FB_API_RETRY_DELAY_MS` | `1000` | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (1 с → 2 с → 4 с → …) |
 | `DEBUG` | `false` | Отладочные логи в stderr |
+| `BUILD_ENV_PATH` | — | Путь к файлу `KEY=VALUE` с дополнительными переменными (см. выше) |
 
 ---
 

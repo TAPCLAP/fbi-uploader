@@ -8,6 +8,10 @@ type AppTokenConfig struct {
 }
 
 func LoadAppTokenConfig() (AppTokenConfig, error) {
+	if err := ApplyBuildEnv(); err != nil {
+		return AppTokenConfig{}, err
+	}
+
 	appID, err := Required("FB_APP_ID")
 	if err != nil {
 		return AppTokenConfig{}, err

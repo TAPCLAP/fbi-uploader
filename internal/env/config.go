@@ -22,6 +22,10 @@ type UploaderConfig struct {
 }
 
 func LoadUploaderConfig() (UploaderConfig, error) {
+	if err := ApplyBuildEnv(); err != nil {
+		return UploaderConfig{}, err
+	}
+
 	appID, err := Required("FB_APP_ID")
 	if err != nil {
 		return UploaderConfig{}, err
