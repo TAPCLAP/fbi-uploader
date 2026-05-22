@@ -93,8 +93,8 @@ export FB_APP_SECRET=your-app-secret
 
 ## `fbi-uploader`
 
-1. Читает исходный zip из `FBINSTANT_ZIP_PATH` (файл не изменяется).
-2. Распаковывает во временную директорию, добавляет `config.json` в корень архива, собирает новый zip в `/tmp/`.
+1. Берёт исходный бандл из `FBINSTANT_ZIP_PATH` (zip-файл) **или** `FBINSTANT_ZIP_PATH_DIR` (папка с файлами). Исходные пути не изменяются.
+2. Копирует содержимое во временную директорию (распаковка zip или копирование папки), добавляет `config.json` в корень архива, собирает новый zip в `/tmp/`.
 3. Создаёт сессию загрузки и отправляет файл на `rupload.facebook.com` с **user** access token.
 4. При `PUSH_TO_PRODUCTION=true` пушит бандл в production (нужен **app** access token).
 
@@ -106,7 +106,7 @@ export FB_APP_SECRET=your-app-secret
 |------------|----------|
 | `FB_APP_ID` | Meta App ID (URL `/uploads` и авторизация при push) |
 | `FB_USER_ACCESS_TOKEN` | User access token для `/uploads` и rupload ([Access Token Tool](https://developers.facebook.com/tools/accesstoken), Web Hosting → Get Asset Upload Access Token) |
-| `FBINSTANT_ZIP_PATH` | Путь к исходному `.zip` |
+| `FBINSTANT_ZIP_PATH` **или** `FBINSTANT_ZIP_PATH_DIR` | Путь к исходному `.zip` или к папке с файлами бандла (задаётся ровно одна переменная) |
 | `CONFIG_JSON` **или** `CONFIG_JSON_FILE` | JSON inline или путь к содержимому `config.json` (должна быть задана ровно одна переменная) |
 
 ### Переменные окружения — только при `PUSH_TO_PRODUCTION=true`
@@ -176,6 +176,7 @@ App token не нужен.
 export FB_APP_ID=123456789
 export FB_USER_ACCESS_TOKEN=EAA...
 export FBINSTANT_ZIP_PATH=./build/game.zip
+# или: export FBINSTANT_ZIP_PATH_DIR=./build/game
 export CONFIG_JSON_FILE=./config.stand.json
 
 export COMMENT_AREA=stand
@@ -232,26 +233,3 @@ docker build -f docker/fbi-uploader/Dockerfile -t fbi-uploader:local .
 
 Образы для CI публикуются в GHCR workflow'ами из `.github/workflows/`.
 
----
-
-## Миграция с `deploy.sh` (graph-video)
-
-| Было (`deploy.sh`) | Стало (`fbi-uploader`) |
-|--------------------|-------------------------|
-| `FBINSTANT_APP_ID` | `FB_APP_ID` |
-| `FBINSTANT_APP_TOKEN` | Для upload не используется; `FB_APP_ACCESS_TOKEN` только для push |
-| `ARCHIVE_DIR` + ручной zip | Готовый zip в `FBINSTANT_ZIP_PATH`; `config.json` добавляет утилита |
-| `AREA` | `COMMENT_AREA` |
-| `BACKEND_URL` (в comment) | `COMMENT_BACKEND_URL` |
-| `COMMIT` | `COMMENT_COMMIT` |
-| `REF` | `COMMENT_REF` |
-| `CDN_URL` (в comment) | `COMMENT_CDN_URL` |
-| — | `FB_USER_ACCESS_TOKEN` (обязателен для нового API) |
-
-Старый endpoint `https://graph-video.facebook.com/{APP_ID}/assets` не поддерживается; используется двухшаговый flow Graph + rupload.
-
----
-
-## Лицензия
-
-Внутренний инструмент Tapclap.

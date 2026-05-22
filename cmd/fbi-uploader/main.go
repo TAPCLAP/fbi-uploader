@@ -25,10 +25,17 @@ func run() int {
 	logger := newLogger(cfg.Debug)
 	ctx := context.Background()
 
-	logger.Info("repacking zip with config.json", slog.String("source", cfg.ZipPath))
-	repackedZip, cleanup, err := ziputil.RepackWithConfig(cfg.ZipPath, cfg.ConfigJSON)
+	var repackedZip string
+	var cleanup func()
+	if cfg.ZipPathDir != "" {
+		logger.Info("packing directory with config.json", slog.String("source", cfg.ZipPathDir))
+		repackedZip, cleanup, err = ziputil.PackDirWithConfig(cfg.ZipPathDir, cfg.ConfigJSON)
+	} else {
+		logger.Info("repacking zip with config.json", slog.String("source", cfg.ZipPath))
+		repackedZip, cleanup, err = ziputil.RepackWithConfig(cfg.ZipPath, cfg.ConfigJSON)
+	}
 	if err != nil {
-		logger.Error("repack failed", slog.String("error", err.Error()))
+		logger.Error("bundle pack failed", slog.String("error", err.Error()))
 		return 1
 	}
 	defer cleanup()

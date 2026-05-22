@@ -13,6 +13,7 @@ type UploaderConfig struct {
 	UserAccessToken  string
 	AppAccessToken   string
 	ZipPath          string
+	ZipPathDir       string
 	ConfigJSON       string
 	GraphAPIVersion  string
 	PushToProduction bool
@@ -29,7 +30,7 @@ func LoadUploaderConfig() (UploaderConfig, error) {
 	if err != nil {
 		return UploaderConfig{}, err
 	}
-	zipPath, err := Required("FBINSTANT_ZIP_PATH")
+	zipPath, zipPathDir, err := loadBundleSource()
 	if err != nil {
 		return UploaderConfig{}, err
 	}
@@ -53,12 +54,29 @@ func LoadUploaderConfig() (UploaderConfig, error) {
 		UserAccessToken:  userToken,
 		AppAccessToken:   appAccessToken,
 		ZipPath:          zipPath,
+		ZipPathDir:       zipPathDir,
 		ConfigJSON:       configJSON,
 		GraphAPIVersion:  Getenv("FB_GRAPH_API_VERSION", "v24.0"),
 		PushToProduction: push,
 		Debug:            BoolEnv("DEBUG", false),
 		Comment:          BuildComment(),
 	}, nil
+}
+
+func loadBundleSource() (zipPath, zipPathDir string, err error) {
+	zipPath = strings.TrimSpace(os.Getenv("FBINSTANT_ZIP_PATH"))
+	zipPathDir = strings.TrimSpace(os.Getenv("FBINSTANT_ZIP_PATH_DIR"))
+
+	switch {
+	case zipPath != "" && zipPathDir != "":
+		return "", "", errors.New("set only one of FBINSTANT_ZIP_PATH or FBINSTANT_ZIP_PATH_DIR, not both")
+	case zipPath != "":
+		return zipPath, "", nil
+	case zipPathDir != "":
+		return "", zipPathDir, nil
+	default:
+		return "", "", errors.New("required: set FBINSTANT_ZIP_PATH or FBINSTANT_ZIP_PATH_DIR")
+	}
 }
 
 func loadConfigJSON() (string, error) {

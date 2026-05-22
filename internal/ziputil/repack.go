@@ -26,13 +26,41 @@ func RepackWithConfig(srcZip, configJSON string) (outZip string, release func(),
 		return "", nil, err
 	}
 
-	removeTempDir := func() {
+	if err := unzip(srcZip, tempDir); err != nil {
 		_ = os.RemoveAll(tempDir)
+		return "", nil, err
 	}
 
-	if err := unzip(srcZip, tempDir); err != nil {
-		removeTempDir()
+	return packWithConfig(tempDir, configJSON)
+}
+
+// PackDirWithConfig copies srcDir into a temp directory, writes config.json at archive root,
+// and creates a new zip in os.TempDir. The original srcDir is not modified.
+func PackDirWithConfig(srcDir, configJSON string) (outZip string, release func(), err error) {
+	srcInfo, err := os.Stat(srcDir)
+	if err != nil {
+		return "", nil, fmt.Errorf("stat source directory: %w", err)
+	}
+	if !srcInfo.IsDir() {
+		return "", nil, fmt.Errorf("source path is not a directory: %s", srcDir)
+	}
+
+	tempDir, err := os.MkdirTemp("", "fbi-uploader-*")
+	if err != nil {
 		return "", nil, err
+	}
+
+	if err := copyDir(srcDir, tempDir); err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("copy source directory: %w", err)
+	}
+
+	return packWithConfig(tempDir, configJSON)
+}
+
+func packWithConfig(tempDir, configJSON string) (outZip string, release func(), err error) {
+	removeTempDir := func() {
+		_ = os.RemoveAll(tempDir)
 	}
 
 	configPath := filepath.Join(tempDir, "config.json")
@@ -53,6 +81,40 @@ func RepackWithConfig(srcZip, configJSON string) (outZip string, release func(),
 		removeTempDir()
 	}
 	return outZip, release, nil
+}
+
+func copyDir(src, dest string) error {
+	src = filepath.Clean(src)
+	dest = filepath.Clean(dest)
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dest, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode().Perm())
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode())
+		if err != nil {
+			in.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, in)
+		in.Close()
+		out.Close()
+		return copyErr
+	})
 }
 
 func unzip(src, dest string) error {

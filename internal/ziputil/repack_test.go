@@ -81,6 +81,53 @@ func TestRepackWithConfig(t *testing.T) {
 	}
 }
 
+func TestPackDirWithConfig(t *testing.T) {
+	srcDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(srcDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	config := `{"backendUrl":"https://api.example.com","cdn":"/"}`
+	outZip, cleanup, err := PackDirWithConfig(srcDir, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(filepath.Join(srcDir, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "<html></html>" {
+		t.Fatal("source directory should be unchanged")
+	}
+	if _, err := os.Stat(filepath.Join(srcDir, "config.json")); !os.IsNotExist(err) {
+		t.Fatal("source directory should not contain config.json")
+	}
+
+	r, err := zip.OpenReader(outZip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	var foundIndex, foundConfig bool
+	for _, f := range r.File {
+		switch f.Name {
+		case "index.html":
+			foundIndex = true
+		case "config.json":
+			foundConfig = true
+		}
+	}
+	if !foundIndex {
+		t.Fatal("packed zip missing index.html")
+	}
+	if !foundConfig {
+		t.Fatal("packed zip missing config.json")
+	}
+}
+
 func createTestZip(t *testing.T, path string, files map[string]string) {
 	t.Helper()
 	f, err := os.Create(path)

@@ -58,6 +58,39 @@ func TestLoadUploaderConfig_pushRequiresAppToken(t *testing.T) {
 	}
 }
 
+func TestLoadUploaderConfig_zipPathDir(t *testing.T) {
+	t.Setenv("FB_APP_ID", "123")
+	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
+	os.Unsetenv("FBINSTANT_ZIP_PATH")
+	t.Setenv("FBINSTANT_ZIP_PATH_DIR", "/tmp/game")
+	t.Setenv("CONFIG_JSON", `{}`)
+	t.Setenv("PUSH_TO_PRODUCTION", "false")
+
+	cfg, err := LoadUploaderConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.ZipPath != "" {
+		t.Fatalf("expected empty zip path, got %q", cfg.ZipPath)
+	}
+	if cfg.ZipPathDir != "/tmp/game" {
+		t.Fatalf("ZipPathDir = %q, want /tmp/game", cfg.ZipPathDir)
+	}
+}
+
+func TestLoadUploaderConfig_bothBundleSources(t *testing.T) {
+	t.Setenv("FB_APP_ID", "123")
+	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
+	t.Setenv("FBINSTANT_ZIP_PATH", "/tmp/x.zip")
+	t.Setenv("FBINSTANT_ZIP_PATH_DIR", "/tmp/game")
+	t.Setenv("CONFIG_JSON", `{}`)
+
+	_, err := LoadUploaderConfig()
+	if err == nil {
+		t.Fatal("expected error when both bundle sources are set")
+	}
+}
+
 func TestLoadUploaderConfig_noPushWithoutAppToken(t *testing.T) {
 	t.Setenv("FB_APP_ID", "123")
 	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
