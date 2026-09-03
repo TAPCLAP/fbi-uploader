@@ -35,7 +35,7 @@ func TestDoWithRetry_retriesNetworkError(t *testing.T) {
 	client := NewClient(RetryConfig{
 		MaxAttempts:  5,
 		InitialDelay: time.Millisecond,
-	}, nil)
+	}, TimeoutConfig{}, nil)
 	client.HTTP = server.Client()
 
 	_, body, err := client.doWithRetry(context.Background(), "test request", func() (*http.Request, error) {
@@ -66,7 +66,7 @@ func TestDoWithRetry_doesNotRetryClientError(t *testing.T) {
 	client := NewClient(RetryConfig{
 		MaxAttempts:  5,
 		InitialDelay: time.Millisecond,
-	}, nil)
+	}, TimeoutConfig{}, nil)
 	client.HTTP = server.Client()
 
 	_, _, err := client.doWithRetry(context.Background(), "test request", func() (*http.Request, error) {
@@ -98,7 +98,7 @@ func TestDoWithRetry_retriesServerError(t *testing.T) {
 	client := NewClient(RetryConfig{
 		MaxAttempts:  5,
 		InitialDelay: time.Millisecond,
-	}, nil)
+	}, TimeoutConfig{}, nil)
 	client.HTTP = server.Client()
 
 	_, _, err := client.doWithRetry(context.Background(), "test request", func() (*http.Request, error) {
@@ -126,7 +126,7 @@ func TestDoWithRetry_exponentialBackoff(t *testing.T) {
 	client := NewClient(RetryConfig{
 		MaxAttempts:  3,
 		InitialDelay: 50 * time.Millisecond,
-	}, nil)
+	}, TimeoutConfig{}, nil)
 	client.HTTP = server.Client()
 
 	start := time.Now()

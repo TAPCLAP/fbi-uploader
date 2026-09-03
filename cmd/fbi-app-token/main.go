@@ -24,9 +24,14 @@ func run() int {
 	logger := newLogger(cfg.Debug)
 
 	retryCfg := env.LoadAPIRetryConfig()
+	timeoutCfg := env.LoadAPITimeoutConfig()
 	client := facebook.NewClient(facebook.RetryConfig{
 		MaxAttempts:  retryCfg.MaxAttempts,
 		InitialDelay: retryCfg.InitialDelay,
+	}, facebook.TimeoutConfig{
+		ConnectTimeout:  timeoutCfg.ConnectTimeout,
+		ResponseTimeout: timeoutCfg.ResponseTimeout,
+		RequestTimeout:  timeoutCfg.RequestTimeout,
 	}, logger)
 	token, err := client.FetchAppAccessToken(context.Background(), cfg.AppID, cfg.AppSecret)
 	if err != nil {

@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/TAPCLAP/fbi-uploader/internal/env"
 	"github.com/TAPCLAP/fbi-uploader/internal/facebook"
 	"github.com/TAPCLAP/fbi-uploader/internal/ziputil"
 )
+
+const expiredTokenExitDelay = 60 * time.Second
 
 func main() {
 	os.Exit(run())
@@ -51,10 +54,20 @@ func run() int {
 	logger.Debug("repacked zip created", slog.String("path", repackedZip))
 
 	retryCfg := env.LoadAPIRetryConfig()
+	timeoutCfg := env.LoadAPITimeoutConfig()
 	client := facebook.NewClient(facebook.RetryConfig{
 		MaxAttempts:  retryCfg.MaxAttempts,
 		InitialDelay: retryCfg.InitialDelay,
+	}, facebook.TimeoutConfig{
+		ConnectTimeout:  timeoutCfg.ConnectTimeout,
+		ResponseTimeout: timeoutCfg.ResponseTimeout,
+		RequestTimeout:  timeoutCfg.RequestTimeout,
 	}, logger)
+
+	if code := checkUserAccessToken(ctx, client, logger, cfg.UserAccessToken); code != 0 {
+		return code
+	}
+
 	uploadParams := facebook.UploadParams{
 		AppID:           cfg.AppID,
 		GraphAPIVersion: cfg.GraphAPIVersion,
@@ -93,6 +106,33 @@ func run() int {
 
 	logger.Info("push to production complete", slog.Int64("bundle_instance_id", result.BundleInstanceID))
 	return 0
+}
+
+func checkUserAccessToken(ctx context.Context, client *facebook.Client, logger *slog.Logger, userToken string) int {
+	info, err := client.InspectUserAccessToken(ctx, userToken)
+	if err != nil {
+		logger.Error("check user access token failed", slog.String("error", err.Error()))
+		return 1
+	}
+
+	if info.NeverExpires {
+		logger.Info("user access token does not expire")
+	} else {
+		logger.Info("user access token expires at", slog.Time("expires_at", info.ExpiresAt))
+	}
+
+	if !info.IsExpired(time.Now()) {
+		return 0
+	}
+
+	if info.NeverExpires {
+		logger.Error("user access token is invalid")
+	} else {
+		logger.Error("user access token expired", slog.Time("expires_at", info.ExpiresAt))
+	}
+	logger.Info("waiting before exit", slog.Duration("delay", expiredTokenExitDelay))
+	time.Sleep(expiredTokenExitDelay)
+	return 1
 }
 
 func newLogger(debug bool) *slog.Logger {
