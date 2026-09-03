@@ -45,11 +45,14 @@ jobs:
 
       - name: Post deploy comment
         uses: actions/github-script@main
+        env:
+          PUSHED_IMAGES: ${{ steps.build-images.outputs.pushed-images }}
+          PREVIEW_REPOSITORY: ${{ steps.preview.outputs.repository }}
         with:
           script: |
             const pr = context.payload.pull_request.number;
-            const images = JSON.parse(`${{ toJSON(steps.build-images.outputs.pushed-images) }}`);
-            const image = images[0] ?? `${{ steps.preview.outputs.repository }}:pr-${pr}`;
+            const images = JSON.parse(process.env.PUSHED_IMAGES || '[]');
+            const image = images[0] ?? `${process.env.PREVIEW_REPOSITORY}:pr-${pr}`;
             const body = [
               `## Preview build (PR #${pr})`,
               '',
