@@ -5,32 +5,59 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 )
 
 const (
-	connectTimeout = 30 * time.Second
-	requestTimeout = 600 * time.Second
+	defaultConnectTimeout  = 30 * time.Second
+	defaultResponseTimeout = 600 * time.Second
+	defaultRequestTimeout  = 600 * time.Second
 )
 
-type Client struct {
-	HTTP   *http.Client
-	Retry  RetryConfig
-	Logger *slog.Logger
+type TimeoutConfig struct {
+	ConnectTimeout  time.Duration
+	ResponseTimeout time.Duration
+	RequestTimeout  time.Duration
 }
 
-func NewClient(retry RetryConfig, logger *slog.Logger) *Client {
+func (cfg TimeoutConfig) withDefaults() TimeoutConfig {
+	if cfg.ConnectTimeout <= 0 {
+		cfg.ConnectTimeout = defaultConnectTimeout
+	}
+	if cfg.ResponseTimeout <= 0 {
+		cfg.ResponseTimeout = defaultResponseTimeout
+	}
+	if cfg.RequestTimeout <= 0 {
+		cfg.RequestTimeout = defaultRequestTimeout
+	}
+	return cfg
+}
+
+type Client struct {
+	HTTP     *http.Client
+	Retry    RetryConfig
+	Timeouts TimeoutConfig
+	Logger   *slog.Logger
+}
+
+func NewClient(retry RetryConfig, timeouts TimeoutConfig, logger *slog.Logger) *Client {
+	timeouts = timeouts.withDefaults()
 	return &Client{
 		HTTP: &http.Client{
-			Timeout: requestTimeout,
+			Timeout: timeouts.RequestTimeout,
 			Transport: &http.Transport{
-				ResponseHeaderTimeout: connectTimeout,
+				DialContext: (&net.Dialer{
+					Timeout: timeouts.ConnectTimeout,
+				}).DialContext,
+				ResponseHeaderTimeout: timeouts.ResponseTimeout,
 			},
 		},
-		Retry:  retry.withDefaults(),
-		Logger: logger,
+		Retry:    retry.withDefaults(),
+		Timeouts: timeouts,
+		Logger:   logger,
 	}
 }
 

@@ -2,3 +2,4 @@
 /fbi-app-token
 *.exe
 .env
+/build
