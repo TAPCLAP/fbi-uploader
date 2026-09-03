@@ -30,6 +30,19 @@ func (info UserTokenInfo) IsExpired(now time.Time) bool {
 	return !info.ExpiresAt.IsZero() && !info.ExpiresAt.After(now)
 }
 
+// FormatRemaining formats a duration as days, hours, and minutes.
+func FormatRemaining(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	days := d / (24 * time.Hour)
+	d %= 24 * time.Hour
+	hours := d / time.Hour
+	d %= time.Hour
+	minutes := d / time.Minute
+	return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+}
+
 type debugTokenResponse struct {
 	Data struct {
 		IsValid   bool  `json:"is_valid"`

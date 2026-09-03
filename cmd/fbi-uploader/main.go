@@ -118,7 +118,10 @@ func checkUserAccessToken(ctx context.Context, client *facebook.Client, logger *
 	if info.NeverExpires {
 		logger.Info("user access token does not expire")
 	} else {
-		logger.Info("user access token expires at", slog.Time("expires_at", info.ExpiresAt))
+		logger.Info("user access token expires at",
+			slog.Time("expires_at", info.ExpiresAt),
+			slog.String("expires_in", facebook.FormatRemaining(time.Until(info.ExpiresAt))),
+		)
 	}
 
 	if !info.IsExpired(time.Now()) {

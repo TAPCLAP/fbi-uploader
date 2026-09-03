@@ -74,6 +74,24 @@ func TestUserTokenInfo_IsExpired(t *testing.T) {
 	}
 }
 
+func TestFormatRemaining(t *testing.T) {
+	cases := []struct {
+		d    time.Duration
+		want string
+	}{
+		{0, "0d 0h 0m"},
+		{-time.Hour, "0d 0h 0m"},
+		{45 * time.Second, "0d 0h 0m"},
+		{90 * time.Minute, "0d 1h 30m"},
+		{2*24*time.Hour + 5*time.Hour + 7*time.Minute, "2d 5h 7m"},
+	}
+	for _, tc := range cases {
+		if got := FormatRemaining(tc.d); got != tc.want {
+			t.Fatalf("FormatRemaining(%v) = %q, want %q", tc.d, got, tc.want)
+		}
+	}
+}
+
 func TestParseDebugTokenResponse_invalidJSON(t *testing.T) {
 	_, err := ParseDebugTokenResponseReader(strings.NewReader(`{`))
 	if err == nil {
