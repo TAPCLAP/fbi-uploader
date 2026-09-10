@@ -7,10 +7,20 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
 const opInspectUserAccessToken = "inspect user access token"
+
+const graphAPIHost = "https://graph.facebook.com"
+
+// DebugTokenParams configures a Graph API debug_token request.
+type DebugTokenParams struct {
+	InputToken      string
+	AccessToken     string
+	GraphAPIVersion string
+}
 
 // UserTokenInfo describes expiration of a user access token from debug_token.
 type UserTokenInfo struct {
@@ -50,20 +60,50 @@ type debugTokenResponse struct {
 	} `json:"data"`
 }
 
-// InspectUserAccessToken calls Graph API debug_token for the given user token.
-func (c *Client) InspectUserAccessToken(ctx context.Context, userToken string) (UserTokenInfo, error) {
-	u, err := url.Parse("https://graph.facebook.com/debug_token")
+// DebugTokenEndpoint is the debug_token URL without query parameters.
+func DebugTokenEndpoint(graphAPIVersion string) string {
+	if v := strings.TrimSpace(graphAPIVersion); v != "" {
+		return graphAPIHost + "/" + v + "/debug_token"
+	}
+	return graphAPIHost + "/debug_token"
+}
+
+// DebugTokenURL builds the Graph API debug_token URL.
+// If AccessToken is empty, InputToken is used for both query parameters.
+func DebugTokenURL(p DebugTokenParams) (string, error) {
+	accessToken := p.AccessToken
+	if accessToken == "" {
+		accessToken = p.InputToken
+	}
+
+	u, err := url.Parse(DebugTokenEndpoint(p.GraphAPIVersion))
 	if err != nil {
-		return UserTokenInfo{}, err
+		return "", err
 	}
 	q := u.Query()
-	q.Set("input_token", userToken)
-	q.Set("access_token", userToken)
+	q.Set("input_token", p.InputToken)
+	q.Set("access_token", accessToken)
 	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+// FetchDebugToken calls Graph API debug_token and returns the raw response body.
+// The body is returned even when the request fails with an API error, so callers can inspect it.
+func (c *Client) FetchDebugToken(ctx context.Context, p DebugTokenParams) ([]byte, error) {
+	rawURL, err := DebugTokenURL(p)
+	if err != nil {
+		return nil, err
+	}
 
 	_, body, err := c.doWithRetry(ctx, opInspectUserAccessToken, func() (*http.Request, error) {
-		return http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+		return http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	})
+	return body, err
+}
+
+// InspectUserAccessToken calls Graph API debug_token for the given user token.
+func (c *Client) InspectUserAccessToken(ctx context.Context, userToken string) (UserTokenInfo, error) {
+	body, err := c.FetchDebugToken(ctx, DebugTokenParams{InputToken: userToken})
 	if err != nil {
 		return UserTokenInfo{}, err
 	}

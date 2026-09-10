@@ -2,12 +2,13 @@
 
 CLI-утилиты для загрузки бандлов Facebook Instant Games через [двухшаговый Graph API flow](https://developers.facebook.com/docs/games/build/instant-games/get-started/test-publish-share/#api-functionality).
 
-В одном модуле два бинарника:
+В одном модуле три бинарника:
 
 | Бинарник | Назначение |
 |----------|------------|
 | `fbi-uploader` | Переупаковка zip с `config.json`, загрузка бандла, опционально push в production |
 | `fbi-app-token` | Получение app access token |
+| `fbi-check-token` | Проверка user access token через Graph API `debug_token` |
 
 ## Документация facebook
 1. Как заливать zip архив https://developers.facebook.com/docs/games/build/instant-games/get-started/test-publish-share/
@@ -55,6 +56,7 @@ curl -s -G "https://graph.facebook.com/oauth/access_token" \
 ```bash
 go build -o fbi-uploader ./cmd/fbi-uploader
 go build -o fbi-app-token ./cmd/fbi-app-token
+go build -o fbi-check-token ./cmd/fbi-check-token
 ```
 
 ## fbi-app-token
@@ -90,6 +92,54 @@ go build -o fbi-app-token ./cmd/fbi-app-token
 export FB_APP_ID=123456789
 export FB_APP_SECRET=your-app-secret
 ./fbi-app-token
+```
+
+---
+
+## `fbi-check-token`
+
+Вызывает Graph API [`debug_token`](https://developers.facebook.com/docs/graph-api/reference/debug_token/) тем же способом, что и `fbi-uploader`, но без загрузки бандла и без паузы при просроченном токене.
+
+Нужен только user access token. Zip, `FB_APP_ID` и app secret не требуются.
+
+В запрос уходят `input_token` и `access_token` равные `FB_USER_ACCESS_TOKEN` (как в `fbi-uploader`). App access token не используется: с ним Graph API на `debug_token` отвечает `500 An unknown error occurred`.
+
+По умолчанию вызывается неверсионированный `https://graph.facebook.com/debug_token`. Чтобы сходить на версионированный endpoint, задайте `FB_GRAPH_API_VERSION` (например `v26.0`).
+
+### Переменные окружения
+
+| Переменная | Обязательна | Описание |
+|------------|-------------|----------|
+| `FB_USER_ACCESS_TOKEN` | да | User access token, который нужно проверить (`input_token` и `access_token`) |
+| `FB_GRAPH_API_VERSION` | нет | Версия Graph API в URL (пусто — неверсионированный endpoint, как в `fbi-uploader`) |
+| `DEBUG` | нет | `true` — отладочные логи в stderr (по умолчанию: `false`) |
+| `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
+| `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
+| `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
+| `FB_API_RESPONSE_TIMEOUT_MS` | нет | Таймаут ожидания заголовков ответа в миллисекундах (по умолчанию: `600000`) |
+| `FB_API_REQUEST_TIMEOUT_MS` | нет | Общий таймаут HTTP-запроса в миллисекундах (по умолчанию: `600000`) |
+| `BUILD_ENV_PATH` | нет | Путь к файлу `KEY=VALUE` с дополнительными переменными |
+
+### Вывод
+
+В **stdout** печатается сырое JSON-тело ответа Facebook (pretty-print, если это валидный JSON). Логи статуса — в stderr.
+
+Код выхода `0`, если токен валиден и не истёк. `1` — при ошибке HTTP, неожиданной форме ответа, невалидном или истёкшем токене.
+
+### Пример
+
+```bash
+export FB_USER_ACCESS_TOKEN=EAA...
+go build -o ./fbi-check-token ./cmd/fbi-check-token
+./fbi-check-token
+```
+
+С версией API:
+
+```bash
+export FB_USER_ACCESS_TOKEN=EAA...
+export FB_GRAPH_API_VERSION=v26.0
+./fbi-check-token | jq .
 ```
 
 ---
@@ -185,7 +235,8 @@ area: stand, backend_url: https://api.example.dev, commit: abc123, ref: main, cd
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `PUSH_TO_PRODUCTION` | `false` | `true`, `1` или `yes` — вызвать push-to-production после upload |
-| `FB_GRAPH_API_VERSION` | `v24.0` | Версия Graph API для сессии загрузки |
+| `CHECK_USER_ACCESS_TOKEN` | `true` | `false`, `0`, `no` или `off` — пропустить Graph API `debug_token` перед upload |
+| `FB_GRAPH_API_VERSION` | `v26.0` | Версия Graph API для сессии загрузки |
 | `FB_API_RETRIES` | `10` | Максимальное число попыток HTTP-запроса к Facebook API при сетевых ошибках (timeout, разрыв соединения и т.п.) и ответах 5xx. Для upload бандла каждая попытка создаёт новую upload-сессию |
 | `FB_API_RETRY_DELAY_MS` | `1000` | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (1 с → 2 с → 4 с → …) |
 | `FB_API_CONNECT_TIMEOUT_MS` | `30000` | Таймаут установки TCP-соединения |

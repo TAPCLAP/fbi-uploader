@@ -1,5 +1,6 @@
 /fbi-uploader
 /fbi-app-token
+/fbi-check-token
 *.exe
 .env
 /build

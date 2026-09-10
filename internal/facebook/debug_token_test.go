@@ -1,10 +1,60 @@
 package facebook
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDebugTokenURL_defaults(t *testing.T) {
+	raw, err := DebugTokenURL(DebugTokenParams{InputToken: "user-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Scheme+"://"+u.Host+u.Path != "https://graph.facebook.com/debug_token" {
+		t.Fatalf("endpoint = %s", u.Scheme+"://"+u.Host+u.Path)
+	}
+	q := u.Query()
+	if q.Get("input_token") != "user-token" || q.Get("access_token") != "user-token" {
+		t.Fatalf("query = %v", q)
+	}
+}
+
+func TestDebugTokenURL_appTokenAndVersion(t *testing.T) {
+	raw, err := DebugTokenURL(DebugTokenParams{
+		InputToken:      "user-token",
+		AccessToken:     "app-token",
+		GraphAPIVersion: "v26.0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Path != "/v26.0/debug_token" {
+		t.Fatalf("path = %q", u.Path)
+	}
+	q := u.Query()
+	if q.Get("input_token") != "user-token" || q.Get("access_token") != "app-token" {
+		t.Fatalf("query = %v", q)
+	}
+}
+
+func TestDebugTokenEndpoint(t *testing.T) {
+	if got := DebugTokenEndpoint(""); got != "https://graph.facebook.com/debug_token" {
+		t.Fatalf("got %q", got)
+	}
+	if got := DebugTokenEndpoint(" v26.0 "); got != "https://graph.facebook.com/v26.0/debug_token" {
+		t.Fatalf("got %q", got)
+	}
+}
 
 func TestParseDebugTokenResponse_withExpiry(t *testing.T) {
 	body := `{"data":{"app_id":"123","type":"USER","is_valid":true,"expires_at":1700000000}}`

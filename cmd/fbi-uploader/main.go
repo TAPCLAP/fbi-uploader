@@ -64,8 +64,12 @@ func run() int {
 		RequestTimeout:  timeoutCfg.RequestTimeout,
 	}, logger)
 
-	if code := checkUserAccessToken(ctx, client, logger, cfg.UserAccessToken); code != 0 {
-		return code
+	if cfg.CheckUserAccessToken {
+		if code := checkUserAccessToken(ctx, client, logger, cfg.UserAccessToken); code != 0 {
+			return code
+		}
+	} else {
+		logger.Info("skipping user access token check (CHECK_USER_ACCESS_TOKEN is false)")
 	}
 
 	uploadParams := facebook.UploadParams{
@@ -109,9 +113,17 @@ func run() int {
 }
 
 func checkUserAccessToken(ctx context.Context, client *facebook.Client, logger *slog.Logger, userToken string) int {
-	info, err := client.InspectUserAccessToken(ctx, userToken)
+	body, fetchErr := client.FetchDebugToken(ctx, facebook.DebugTokenParams{InputToken: userToken})
+	if fetchErr != nil {
+		dumpTokenResponse(logger, body)
+		logger.Error("check user access token failed", slog.String("error", fetchErr.Error()))
+		return 1
+	}
+
+	info, err := facebook.ParseDebugTokenResponse(body)
 	if err != nil {
-		logger.Error("check user access token failed", slog.String("error", err.Error()))
+		dumpTokenResponse(logger, body)
+		logger.Error("parse debug_token response failed", slog.String("error", err.Error()))
 		return 1
 	}
 
@@ -128,6 +140,7 @@ func checkUserAccessToken(ctx context.Context, client *facebook.Client, logger *
 		return 0
 	}
 
+	dumpTokenResponse(logger, body)
 	if info.NeverExpires {
 		logger.Error("user access token is invalid")
 	} else {
@@ -136,6 +149,12 @@ func checkUserAccessToken(ctx context.Context, client *facebook.Client, logger *
 	logger.Info("waiting before exit", slog.Duration("delay", expiredTokenExitDelay))
 	time.Sleep(expiredTokenExitDelay)
 	return 1
+}
+
+func dumpTokenResponse(logger *slog.Logger, body []byte) {
+	if err := facebook.WritePrettyJSON(os.Stdout, body); err != nil {
+		logger.Error("write stdout failed", slog.String("error", err.Error()))
+	}
 }
 
 func newLogger(debug bool) *slog.Logger {

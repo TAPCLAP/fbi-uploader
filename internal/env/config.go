@@ -9,16 +9,17 @@ import (
 
 // UploaderConfig holds env for fbi-uploader CLI.
 type UploaderConfig struct {
-	AppID            string
-	UserAccessToken  string
-	AppAccessToken   string
-	ZipPath          string
-	ZipPathDir       string
-	ConfigJSON       string
-	GraphAPIVersion  string
-	PushToProduction bool
-	Debug            bool
-	Comment          string
+	AppID                string
+	UserAccessToken      string
+	AppAccessToken       string
+	ZipPath              string
+	ZipPathDir           string
+	ConfigJSON           string
+	GraphAPIVersion      string
+	PushToProduction     bool
+	CheckUserAccessToken bool
+	Debug                bool
+	Comment              string
 }
 
 func LoadUploaderConfig() (UploaderConfig, error) {
@@ -54,16 +55,17 @@ func LoadUploaderConfig() (UploaderConfig, error) {
 	}
 
 	return UploaderConfig{
-		AppID:            appID,
-		UserAccessToken:  userToken,
-		AppAccessToken:   appAccessToken,
-		ZipPath:          zipPath,
-		ZipPathDir:       zipPathDir,
-		ConfigJSON:       configJSON,
-		GraphAPIVersion:  Getenv("FB_GRAPH_API_VERSION", "v24.0"),
-		PushToProduction: push,
-		Debug:            BoolEnv("DEBUG", false),
-		Comment:          BuildComment(),
+		AppID:                appID,
+		UserAccessToken:      userToken,
+		AppAccessToken:       appAccessToken,
+		ZipPath:              zipPath,
+		ZipPathDir:           zipPathDir,
+		ConfigJSON:           configJSON,
+		GraphAPIVersion:      Getenv("FB_GRAPH_API_VERSION", "v26.0"),
+		PushToProduction:     push,
+		CheckUserAccessToken: BoolEnv("CHECK_USER_ACCESS_TOKEN", true),
+		Debug:                BoolEnv("DEBUG", false),
+		Comment:              BuildComment(),
 	}, nil
 }
 
