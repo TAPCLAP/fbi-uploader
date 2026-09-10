@@ -12,8 +12,8 @@ func TestSanitizeSecrets(t *testing.T) {
 	}{
 		{
 			name: "url access_token",
-			in:   `Post "https://graph.facebook.com/v24.0/123/uploads?access_token=EAAsecret123&file_name=x.zip": dial tcp: timeout`,
-			want: `Post "https://graph.facebook.com/v24.0/123/uploads?access_token=[REDACTED]&file_name=x.zip": dial tcp: timeout`,
+			in:   `Post "https://graph.facebook.com/v26.0/123/uploads?access_token=EAAsecret123&file_name=x.zip": dial tcp: timeout`,
+			want: `Post "https://graph.facebook.com/v26.0/123/uploads?access_token=[REDACTED]&file_name=x.zip": dial tcp: timeout`,
 		},
 		{
 			name: "url client_secret",

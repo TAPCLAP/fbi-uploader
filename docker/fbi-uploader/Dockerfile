@@ -12,7 +12,9 @@ COPY ./internal ./internal
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -trimpath -o /out/fbi-uploader ./cmd/fbi-uploader && \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -trimpath -o /out/fbi-app-token ./cmd/fbi-app-token
+    go build -ldflags="-s -w" -trimpath -o /out/fbi-app-token ./cmd/fbi-app-token && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -ldflags="-s -w" -trimpath -o /out/fbi-check-token ./cmd/fbi-check-token
 
 FROM docker.io/alpine:3.23.4 AS certificates
 RUN apk add --no-cache ca-certificates

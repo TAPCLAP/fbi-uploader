@@ -124,3 +124,37 @@ func TestLoadUploaderConfig_noPushWithoutAppToken(t *testing.T) {
 		t.Fatalf("expected empty app token, got %q", cfg.AppAccessToken)
 	}
 }
+
+func TestLoadUploaderConfig_checkUserAccessTokenDefault(t *testing.T) {
+	t.Setenv("FB_APP_ID", "123")
+	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
+	t.Setenv("FBINSTANT_ZIP_PATH", "/tmp/x.zip")
+	t.Setenv("CONFIG_JSON", `{}`)
+	t.Setenv("PUSH_TO_PRODUCTION", "false")
+	t.Setenv("CHECK_USER_ACCESS_TOKEN", "")
+
+	cfg, err := LoadUploaderConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.CheckUserAccessToken {
+		t.Fatal("expected CheckUserAccessToken=true by default")
+	}
+}
+
+func TestLoadUploaderConfig_checkUserAccessTokenDisabled(t *testing.T) {
+	t.Setenv("FB_APP_ID", "123")
+	t.Setenv("FB_USER_ACCESS_TOKEN", "user")
+	t.Setenv("FBINSTANT_ZIP_PATH", "/tmp/x.zip")
+	t.Setenv("CONFIG_JSON", `{}`)
+	t.Setenv("PUSH_TO_PRODUCTION", "false")
+	t.Setenv("CHECK_USER_ACCESS_TOKEN", "false")
+
+	cfg, err := LoadUploaderConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.CheckUserAccessToken {
+		t.Fatal("expected CheckUserAccessToken=false")
+	}
+}
