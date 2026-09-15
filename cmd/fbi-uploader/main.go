@@ -51,7 +51,17 @@ func run() int {
 		return 1
 	}
 	defer cleanup()
-	logger.Debug("repacked zip created", slog.String("path", repackedZip))
+
+	zipInfo, err := os.Stat(repackedZip)
+	if err != nil {
+		logger.Error("stat zip failed", slog.String("path", repackedZip), slog.String("error", err.Error()))
+		return 1
+	}
+	logger.Info("bundle zip ready",
+		slog.String("path", repackedZip),
+		slog.Int64("zip_bytes", zipInfo.Size()),
+		slog.String("zip_size", formatBytes(zipInfo.Size())),
+	)
 
 	retryCfg := env.LoadAPIRetryConfig()
 	timeoutCfg := env.LoadAPITimeoutConfig()
@@ -80,7 +90,10 @@ func run() int {
 		Comment:         cfg.Comment,
 	}
 
-	logger.Info("uploading bundle to facebook")
+	logger.Info("uploading bundle to facebook",
+		slog.Int64("zip_bytes", zipInfo.Size()),
+		slog.String("zip_size", formatBytes(zipInfo.Size())),
+	)
 	result, err := client.UploadBundleWithRetry(ctx, uploadParams)
 	if err != nil {
 		logger.Error("upload failed", slog.String("error", err.Error()))
@@ -168,4 +181,19 @@ func newLogger(debug bool) *slog.Logger {
 		level = slog.LevelDebug
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+}
+
+func formatBytes(n int64) string {
+	const (
+		kb = 1024
+		mb = 1024 * 1024
+	)
+	switch {
+	case n >= mb:
+		return fmt.Sprintf("%.1f MB", float64(n)/mb)
+	case n >= kb:
+		return fmt.Sprintf("%.1f KB", float64(n)/kb)
+	default:
+		return fmt.Sprintf("%d B", n)
+	}
 }

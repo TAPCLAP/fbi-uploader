@@ -127,14 +127,18 @@ func (c *Client) ruploadBundle(ctx context.Context, p UploadParams, sessionID, f
 	}
 	req.ContentLength = fileLength
 
+	c.logHTTPRequest(opUploadBundle, req)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
+		c.logHTTPTransportError(opUploadBundle, req, err)
 		return 0, nil, err
 	}
 	body, err := readBody(resp)
 	if err != nil {
+		c.logHTTPResponse(opUploadBundle, resp, nil)
 		return 0, nil, err
 	}
+	c.logHTTPResponse(opUploadBundle, resp, body)
 	if err := checkRuploadResponse(resp, body); err != nil {
 		return 0, body, err
 	}

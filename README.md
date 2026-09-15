@@ -128,7 +128,7 @@ area: stand, backend_url: https://api.example.dev, commit: abc123, ref: main, cd
 | `FB_API_CONNECT_TIMEOUT_MS` | `30000` | Таймаут установки TCP-соединения |
 | `FB_API_RESPONSE_TIMEOUT_MS` | `600000` | Таймаут ожидания заголовков ответа после отправки тела (включая большой zip) |
 | `FB_API_REQUEST_TIMEOUT_MS` | `600000` | Общий таймаут HTTP-запроса |
-| `DEBUG` | `false` | Отладочные логи в stderr |
+| `DEBUG` | `false` | Подробные логи в stderr, включая HTTP-запросы и ответы (токены маскируются, тело zip не пишется) |
 | `BUILD_ENV_PATH` | — | Путь к файлу `KEY=VALUE` с дополнительными переменными (см. выше) |
 
 ### Примеры
@@ -215,7 +215,7 @@ go build -o fbi-check-token ./cmd/fbi-check-token
 |------------|-------------|----------|
 | `FB_APP_ID` | да | Meta App ID |
 | `FB_APP_SECRET` | да | Meta App Secret |
-| `DEBUG` | нет | `true` — отладочные логи в stderr (по умолчанию: `false`) |
+| `DEBUG` | нет | `true` — подробные логи в stderr, включая HTTP-запросы и ответы (секреты маскируются; по умолчанию: `false`) |
 | `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
 | `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
 | `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
@@ -277,7 +277,7 @@ curl -s -G "https://graph.facebook.com/oauth/access_token" \
 |------------|-------------|----------|
 | `FB_USER_ACCESS_TOKEN` | да | User access token, который нужно проверить (`input_token` и `access_token`) |
 | `FB_GRAPH_API_VERSION` | нет | Версия Graph API в URL (пусто — неверсионированный endpoint, как в `fbi-uploader`) |
-| `DEBUG` | нет | `true` — отладочные логи в stderr (по умолчанию: `false`) |
+| `DEBUG` | нет | `true` — подробные логи в stderr, включая HTTP-запросы и ответы (токены маскируются; по умолчанию: `false`) |
 | `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
 | `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
 | `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
