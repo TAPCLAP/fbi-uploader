@@ -8,6 +8,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+)
+
+const (
+	uploadNamespaceGG  = "gg_graph_api"
+	uploadNamespaceEAA = "fb_game_bundle"
 )
 
 type UploadParams struct {
@@ -31,7 +37,7 @@ type createUploadResponse struct {
 type ruploadResponse struct {
 	Success          bool   `json:"success"`
 	Message          string `json:"message"`
-	BundleInstanceID int64 `json:"bundle_instance_id"`
+	BundleInstanceID int64  `json:"bundle_instance_id"`
 	PlayableLink     string `json:"playable_link"`
 }
 
@@ -93,7 +99,10 @@ func (c *Client) createUploadSession(ctx context.Context, p UploadParams, fileNa
 }
 
 func (c *Client) ruploadBundle(ctx context.Context, p UploadParams, sessionID, fileName string, fileLength int64) (int64, []byte, error) {
-	uploadURL := fmt.Sprintf("https://rupload.facebook.com/gg_graph_api/upload:%s", sessionID)
+	uploadURL, err := ruploadURL(p.UserAccessToken, sessionID)
+	if err != nil {
+		return 0, nil, err
+	}
 
 	f, err := os.Open(p.ZipPath)
 	if err != nil {
@@ -154,9 +163,35 @@ func checkRuploadResponse(resp *http.Response, body []byte) error {
 	return nil
 }
 
+// ruploadURL builds the binary upload URL. Namespace depends on the token prefix:
+// GG → gg_graph_api, EAA → fb_game_bundle (including System User tokens).
+func ruploadURL(token, sessionID string) (string, error) {
+	ns, err := uploadNamespace(token)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("https://rupload.facebook.com/%s/upload:%s", ns, sessionID), nil
+}
+
+// uploadNamespace returns the rupload path segment for the given access token.
+func uploadNamespace(token string) (string, error) {
+	switch {
+	case strings.HasPrefix(token, "GG"):
+		return uploadNamespaceGG, nil
+	case strings.HasPrefix(token, "EAA"):
+		return uploadNamespaceEAA, nil
+	default:
+		return "", fmt.Errorf("unsupported access token prefix: rupload namespace requires a token starting with GG or EAA")
+	}
+}
+
 // UploadBundleWithRetry retries the full upload flow (new session each attempt).
 // rupload cannot be retried on the same session after partial data was sent.
 func (c *Client) UploadBundleWithRetry(ctx context.Context, p UploadParams) (UploadResult, error) {
+	if _, err := uploadNamespace(p.UserAccessToken); err != nil {
+		return UploadResult{}, err
+	}
+
 	cfg := c.Retry.withDefaults()
 
 	var lastErr error
