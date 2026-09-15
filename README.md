@@ -124,7 +124,7 @@ export FB_APP_SECRET=your-app-secret
 
 В **stdout** печатается сырое JSON-тело ответа Facebook (pretty-print, если это валидный JSON). Логи статуса — в stderr.
 
-Код выхода `0`, если токен валиден и не истёк. `1` — при ошибке HTTP, неожиданной форме ответа, невалидном или истёкшем токене.
+Код выхода `0`, если токен валиден и не истёк, либо в ответе нет полей `is_valid` / `expires_at` (проверка пропускается). `1` — при ошибке HTTP, невалидном JSON, невалидном или истёкшем токене.
 
 ### Пример
 
@@ -235,7 +235,7 @@ area: stand, backend_url: https://api.example.dev, commit: abc123, ref: main, cd
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `PUSH_TO_PRODUCTION` | `false` | `true`, `1` или `yes` — вызвать push-to-production после upload |
-| `CHECK_USER_ACCESS_TOKEN` | `true` | `false`, `0`, `no` или `off` — пропустить Graph API `debug_token` перед upload |
+| `CHECK_USER_ACCESS_TOKEN` | `true` | `false`, `0`, `no` или `off` — пропустить Graph API `debug_token` перед upload. Если Facebook вернул ответ без `is_valid`, проверка не блокирует upload |
 | `FB_GRAPH_API_VERSION` | `v26.0` | Версия Graph API для сессии загрузки |
 | `FB_API_RETRIES` | `10` | Максимальное число попыток HTTP-запроса к Facebook API при сетевых ошибках (timeout, разрыв соединения и т.п.) и ответах 5xx. Для upload бандла каждая попытка создаёт новую upload-сессию |
 | `FB_API_RETRY_DELAY_MS` | `1000` | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (1 с → 2 с → 4 с → …) |

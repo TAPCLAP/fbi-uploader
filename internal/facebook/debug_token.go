@@ -1,6 +1,7 @@
 package facebook
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,10 +28,17 @@ type UserTokenInfo struct {
 	Valid        bool
 	NeverExpires bool
 	ExpiresAt    time.Time
+	// Incomplete is true when the response has no usable is_valid field
+	// (for example {"data":[]}). The token was not proven invalid or expired.
+	Incomplete bool
 }
 
 // IsExpired reports whether the token is invalid or past its expiration time.
+// Incomplete responses are not treated as expired.
 func (info UserTokenInfo) IsExpired(now time.Time) bool {
+	if info.Incomplete {
+		return false
+	}
 	if !info.Valid {
 		return true
 	}
@@ -54,10 +62,12 @@ func FormatRemaining(d time.Duration) string {
 }
 
 type debugTokenResponse struct {
-	Data struct {
-		IsValid   bool  `json:"is_valid"`
-		ExpiresAt int64 `json:"expires_at"`
-	} `json:"data"`
+	Data json.RawMessage `json:"data"`
+}
+
+type debugTokenData struct {
+	IsValid   *bool  `json:"is_valid"`
+	ExpiresAt *int64 `json:"expires_at"`
 }
 
 // DebugTokenEndpoint is the debug_token URL without query parameters.
@@ -112,20 +122,39 @@ func (c *Client) InspectUserAccessToken(ctx context.Context, userToken string) (
 }
 
 // ParseDebugTokenResponse parses debug_token JSON (for tests).
+// Missing or unexpected data (empty array, null, object without is_valid)
+// returns Incomplete info and no error.
 func ParseDebugTokenResponse(body []byte) (UserTokenInfo, error) {
 	var resp debugTokenResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return UserTokenInfo{}, fmt.Errorf("parse debug_token response: %w", err)
 	}
 
-	info := UserTokenInfo{Valid: resp.Data.IsValid}
-	if resp.Data.ExpiresAt == 0 {
+	data, ok := parseDebugTokenData(resp.Data)
+	if !ok || data.IsValid == nil {
+		return UserTokenInfo{Incomplete: true}, nil
+	}
+
+	info := UserTokenInfo{Valid: *data.IsValid}
+	if data.ExpiresAt == nil || *data.ExpiresAt == 0 {
 		info.NeverExpires = true
 		return info, nil
 	}
 
-	info.ExpiresAt = time.Unix(resp.Data.ExpiresAt, 0).UTC()
+	info.ExpiresAt = time.Unix(*data.ExpiresAt, 0).UTC()
 	return info, nil
+}
+
+func parseDebugTokenData(raw json.RawMessage) (debugTokenData, bool) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || raw[0] != '{' {
+		return debugTokenData{}, false
+	}
+	var data debugTokenData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return debugTokenData{}, false
+	}
+	return data, true
 }
 
 // ParseDebugTokenResponseReader is like ParseDebugTokenResponse but reads from r.

@@ -61,6 +61,11 @@ func run() int {
 		return 1
 	}
 
+	if info.Incomplete {
+		logger.Warn("user access token check skipped: debug_token response is missing expected fields")
+		return 0
+	}
+
 	if info.NeverExpires {
 		logger.Info("user access token does not expire")
 	} else {

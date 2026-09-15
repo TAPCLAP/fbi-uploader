@@ -75,13 +75,53 @@ func TestParseDebugTokenResponse_withExpiry(t *testing.T) {
 }
 
 func TestParseDebugTokenResponse_neverExpires(t *testing.T) {
-	body := `{"data":{"is_valid":true,"expires_at":0}}`
-	info, err := ParseDebugTokenResponse([]byte(body))
+	cases := []string{
+		`{"data":{"is_valid":true,"expires_at":0}}`,
+		`{"data":{"is_valid":true}}`,
+	}
+	for _, body := range cases {
+		info, err := ParseDebugTokenResponse([]byte(body))
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", body, err)
+		}
+		if info.Incomplete || !info.Valid || !info.NeverExpires {
+			t.Fatalf("%s: got incomplete=%v valid=%v neverExpires=%v", body, info.Incomplete, info.Valid, info.NeverExpires)
+		}
+	}
+}
+
+func TestParseDebugTokenResponse_invalid(t *testing.T) {
+	info, err := ParseDebugTokenResponse([]byte(`{"data":{"is_valid":false}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.Valid || !info.NeverExpires {
-		t.Fatalf("got valid=%v neverExpires=%v", info.Valid, info.NeverExpires)
+	if info.Incomplete || info.Valid {
+		t.Fatalf("got incomplete=%v valid=%v", info.Incomplete, info.Valid)
+	}
+	if !info.IsExpired(time.Now()) {
+		t.Fatal("expected invalid token to count as expired")
+	}
+}
+
+func TestParseDebugTokenResponse_incomplete(t *testing.T) {
+	cases := []string{
+		`{"data":[]}`,
+		`{"data":{}}`,
+		`{"data":null}`,
+		`{}`,
+		`{"data":{"expires_at":1700000000}}`,
+	}
+	for _, body := range cases {
+		info, err := ParseDebugTokenResponse([]byte(body))
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", body, err)
+		}
+		if !info.Incomplete {
+			t.Fatalf("%s: expected Incomplete", body)
+		}
+		if info.IsExpired(time.Unix(1700000100, 0).UTC()) {
+			t.Fatalf("%s: incomplete response should not count as expired", body)
+		}
 	}
 }
 
@@ -93,6 +133,11 @@ func TestUserTokenInfo_IsExpired(t *testing.T) {
 		info UserTokenInfo
 		want bool
 	}{
+		{
+			name: "incomplete",
+			info: UserTokenInfo{Incomplete: true},
+			want: false,
+		},
 		{
 			name: "invalid",
 			info: UserTokenInfo{Valid: false},
