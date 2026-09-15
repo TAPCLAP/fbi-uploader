@@ -5,6 +5,65 @@ import (
 	"testing"
 )
 
+func TestUploadNamespace(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		token string
+		want  string
+		ok    bool
+	}{
+		{token: "GGabc123", want: "gg_graph_api", ok: true},
+		{token: "GG|123|secret", want: "gg_graph_api", ok: true},
+		{token: "EAABWzLixnjYBO", want: "fb_game_bundle", ok: true},
+		{token: "EAA...", want: "fb_game_bundle", ok: true},
+		{token: "eaabwz", ok: false},
+		{token: "ggabc", ok: false},
+		{token: "", ok: false},
+		{token: "Bearer EAA", ok: false},
+	}
+
+	for _, tc := range cases {
+		got, err := uploadNamespace(tc.token)
+		if tc.ok {
+			if err != nil {
+				t.Fatalf("token %q: %v", tc.token, err)
+			}
+			if got != tc.want {
+				t.Fatalf("token %q: got %q want %q", tc.token, got, tc.want)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("token %q: expected error", tc.token)
+		}
+	}
+}
+
+func TestRuploadURL(t *testing.T) {
+	t.Parallel()
+
+	got, err := ruploadURL("GGtoken", "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://rupload.facebook.com/gg_graph_api/upload:abc123" {
+		t.Fatalf("got %q", got)
+	}
+
+	got, err = ruploadURL("EAAtoken", "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://rupload.facebook.com/fb_game_bundle/upload:abc123" {
+		t.Fatalf("got %q", got)
+	}
+
+	if _, err := ruploadURL("bad-token", "abc123"); err == nil {
+		t.Fatal("expected error for unsupported token prefix")
+	}
+}
+
 func TestParseBundleInstanceID(t *testing.T) {
 	t.Parallel()
 

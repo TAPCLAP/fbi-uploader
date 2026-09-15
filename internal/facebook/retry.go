@@ -10,11 +10,11 @@ import (
 
 const (
 	defaultRetryAttempts     = 10
-	defaultRetryInitialDelay   = time.Second
-	opCreateUploadSession      = "create upload session"
-	opUploadBundle             = "upload bundle"
-	opPushToProduction         = "push to production"
-	opFetchAppAccessToken      = "fetch app access token"
+	defaultRetryInitialDelay = time.Second
+	opCreateUploadSession    = "create upload session"
+	opUploadBundle           = "upload bundle"
+	opPushToProduction       = "push to production"
+	opFetchAppAccessToken    = "fetch app access token"
 )
 
 type operationError struct {
@@ -78,9 +78,11 @@ func (c *Client) doWithRetry(ctx context.Context, operation string, newReq reque
 		if err != nil {
 			return nil, nil, err
 		}
+		c.logHTTPRequest(operation, req)
 
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
+			c.logHTTPTransportError(operation, req, err)
 			lastErr = err
 			if !isRetryable(err) || attempt == cfg.MaxAttempts {
 				return nil, nil, opError(operation, err)
@@ -95,6 +97,7 @@ func (c *Client) doWithRetry(ctx context.Context, operation string, newReq reque
 
 		body, err := readBody(resp)
 		if err != nil {
+			c.logHTTPResponse(operation, resp, nil)
 			lastErr = err
 			if !isRetryable(err) || attempt == cfg.MaxAttempts {
 				return nil, nil, opError(operation, err)
@@ -106,6 +109,7 @@ func (c *Client) doWithRetry(ctx context.Context, operation string, newReq reque
 			delay *= 2
 			continue
 		}
+		c.logHTTPResponse(operation, resp, body)
 
 		if err := checkResponse(resp, body); err != nil {
 			lastErr = err

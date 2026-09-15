@@ -1,51 +1,24 @@
 # fbi-uploader
 
-CLI-утилиты для загрузки бандлов Facebook Instant Games через [двухшаговый Graph API flow](https://developers.facebook.com/docs/games/build/instant-games/get-started/test-publish-share/#api-functionality).
+CLI для загрузки бандлов Facebook Instant Games через [двухшаговый Graph API flow](https://developers.facebook.com/documentation/games/launch/upload-bundle).
 
-В одном модуле три бинарника:
+Основной бинарник — `fbi-uploader`: переупаковка zip с `config.json`, загрузка бандла, опционально push в production.
+
+В том же модуле есть вспомогательные утилиты ([описание ниже](#дополнительные-утилиты)):
 
 | Бинарник | Назначение |
 |----------|------------|
-| `fbi-uploader` | Переупаковка zip с `config.json`, загрузка бандла, опционально push в production |
 | `fbi-app-token` | Получение app access token |
 | `fbi-check-token` | Проверка user access token через Graph API `debug_token` |
 
 ## Документация facebook
-1. Как заливать zip архив https://developers.facebook.com/docs/games/build/instant-games/get-started/test-publish-share/
+
+1. Как заливать zip архив https://developers.facebook.com/documentation/games/launch/upload-bundle
 1. Как получить app token https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens
 
-Для заливки бандла нужен `user access token`. Для пуша залитого архива в продакшн, нужен app access token. User access token можно получить вроде только вручную на странице https://developers.facebook.com/tools/accesstoken.
+Для заливки бандла нужен `user access token`. Для пуша залитого архива в продакшн нужен app access token. User access token можно получить вроде только вручную на странице https://developers.facebook.com/tools/accesstoken.
 
-App access token — [client credentials](https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens)
-Его можно получить с помощью утилиты в этом репозитории: `fbi-app-token`:
-```bash
-export FB_APP_ID=app_id
-export FB_APP_SECRET=app_secret
-go build -o ./fbi-app-token ./cmd/fbi-app-token
-./fbi-app-token
-```
-Или вручную с помощью запросов:
-
-```bash
-export FB_APP_ID=app_id
-export FB_APP_SECRET=app_secret
-curl -s -G "https://graph.facebook.com/oauth/access_token" \
-  --data-urlencode "client_id=${FB_APP_ID}" \
-  --data-urlencode "client_secret=${FB_APP_SECRET}" \
-  --data-urlencode "grant_type=client_credentials"
-```
-
-Ответ — JSON с полем `access_token`. Токен из ответа:
-
-```bash
-curl -s -G "https://graph.facebook.com/oauth/access_token" \
-  --data-urlencode "client_id=${FB_APP_ID}" \
-  --data-urlencode "client_secret=${FB_APP_SECRET}" \
-  --data-urlencode "grant_type=client_credentials" \
-  | jq -r .access_token
-```
-
-Тот же запрос делает утилита [fbi-app-token](#fbi-app-token) в этом репозитории.
+App access token — [client credentials](https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens). Его можно получить утилитой [`fbi-app-token`](#fbi-app-token) или вручную (см. ту же секцию).
 
 ## Требования
 
@@ -55,100 +28,13 @@ curl -s -G "https://graph.facebook.com/oauth/access_token" \
 
 ```bash
 go build -o fbi-uploader ./cmd/fbi-uploader
-go build -o fbi-app-token ./cmd/fbi-app-token
-go build -o fbi-check-token ./cmd/fbi-check-token
 ```
-
-## fbi-app-token
-
-Запрашивает app access token по схеме [client credentials](https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens).
-
-### Переменные окружения
-
-| Переменная | Обязательна | Описание |
-|------------|-------------|----------|
-| `FB_APP_ID` | да | Meta App ID |
-| `FB_APP_SECRET` | да | Meta App Secret |
-| `DEBUG` | нет | `true` — отладочные логи в stderr (по умолчанию: `false`) |
-| `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
-| `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
-| `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
-| `FB_API_RESPONSE_TIMEOUT_MS` | нет | Таймаут ожидания заголовков ответа после отправки тела запроса в миллисекундах (по умолчанию: `600000`) |
-| `FB_API_REQUEST_TIMEOUT_MS` | нет | Общий таймаут HTTP-запроса в миллисекундах (по умолчанию: `600000`) |
-
-### Вывод
-
-При успехе в stdout печатается **только** access token (без перевода строки в конце). При подстановке через command substitution, если shell добавляет `\n`, используйте `tr -d '\n'`:
-
-```bash
-./fbi-app-token
-```
-
-Ошибки пишутся в stderr; код выхода `1` при сбое.
-
-### Пример
-
-```bash
-export FB_APP_ID=123456789
-export FB_APP_SECRET=your-app-secret
-./fbi-app-token
-```
-
----
-
-## `fbi-check-token`
-
-Вызывает Graph API [`debug_token`](https://developers.facebook.com/docs/graph-api/reference/debug_token/) тем же способом, что и `fbi-uploader`, но без загрузки бандла и без паузы при просроченном токене.
-
-Нужен только user access token. Zip, `FB_APP_ID` и app secret не требуются.
-
-В запрос уходят `input_token` и `access_token` равные `FB_USER_ACCESS_TOKEN` (как в `fbi-uploader`). App access token не используется: с ним Graph API на `debug_token` отвечает `500 An unknown error occurred`.
-
-По умолчанию вызывается неверсионированный `https://graph.facebook.com/debug_token`. Чтобы сходить на версионированный endpoint, задайте `FB_GRAPH_API_VERSION` (например `v26.0`).
-
-### Переменные окружения
-
-| Переменная | Обязательна | Описание |
-|------------|-------------|----------|
-| `FB_USER_ACCESS_TOKEN` | да | User access token, который нужно проверить (`input_token` и `access_token`) |
-| `FB_GRAPH_API_VERSION` | нет | Версия Graph API в URL (пусто — неверсионированный endpoint, как в `fbi-uploader`) |
-| `DEBUG` | нет | `true` — отладочные логи в stderr (по умолчанию: `false`) |
-| `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
-| `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
-| `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
-| `FB_API_RESPONSE_TIMEOUT_MS` | нет | Таймаут ожидания заголовков ответа в миллисекундах (по умолчанию: `600000`) |
-| `FB_API_REQUEST_TIMEOUT_MS` | нет | Общий таймаут HTTP-запроса в миллисекундах (по умолчанию: `600000`) |
-| `BUILD_ENV_PATH` | нет | Путь к файлу `KEY=VALUE` с дополнительными переменными |
-
-### Вывод
-
-В **stdout** печатается сырое JSON-тело ответа Facebook (pretty-print, если это валидный JSON). Логи статуса — в stderr.
-
-Код выхода `0`, если токен валиден и не истёк. `1` — при ошибке HTTP, неожиданной форме ответа, невалидном или истёкшем токене.
-
-### Пример
-
-```bash
-export FB_USER_ACCESS_TOKEN=EAA...
-go build -o ./fbi-check-token ./cmd/fbi-check-token
-./fbi-check-token
-```
-
-С версией API:
-
-```bash
-export FB_USER_ACCESS_TOKEN=EAA...
-export FB_GRAPH_API_VERSION=v26.0
-./fbi-check-token | jq .
-```
-
----
 
 ## `fbi-uploader`
 
 1. Берёт исходный бандл из `FBINSTANT_ZIP_PATH` (zip-файл) **или** `FBINSTANT_ZIP_PATH_DIR` (папка с файлами). Исходные пути не изменяются.
 2. При заданном `CONFIG_JSON` или `CONFIG_JSON_FILE` копирует содержимое во временную директорию (распаковка zip или копирование папки), добавляет `config.json` в корень архива и собирает новый zip в `/tmp/`. Без config — zip загружается как есть, папка упаковывается в zip без `config.json`.
-3. Создаёт сессию загрузки и отправляет файл на `rupload.facebook.com` с **user** access token.
+3. Создаёт сессию загрузки и отправляет файл на `rupload.facebook.com` с **user** access token. Namespace в URL выбирается по префиксу токена: `GG…` → `gg_graph_api`, `EAA…` → `fb_game_bundle` (в том числе System User).
 4. При `PUSH_TO_PRODUCTION=true` пушит бандл в production (нужен **app** access token).
 
 Сейчас пуш бандла в продакшн (`PUSH_TO_PRODUCTION`) не работает. Не знаю по какой причине. Явно какие-то проблемы на стороне FB. Причем в документации указано, что надо отправлять тело запроса с `{"version_id":"{BUNDLE_INSTANCE_ID}"}` на что API возвращает ошибку, при этом `{"bundle_instance_id":"{BUNDLE_INSTANCE_ID}"}` работает, но не даёт эффекта.
@@ -158,7 +44,7 @@ export FB_GRAPH_API_VERSION=v26.0
 | Переменная | Описание |
 |------------|----------|
 | `FB_APP_ID` | Meta App ID (URL `/uploads` и авторизация при push) |
-| `FB_USER_ACCESS_TOKEN` | User access token для `/uploads` и rupload ([Access Token Tool](https://developers.facebook.com/tools/accesstoken), Web Hosting → Get Asset Upload Access Token) |
+| `FB_USER_ACCESS_TOKEN` | User access token для `/uploads` и rupload ([Access Token Tool](https://developers.facebook.com/tools/accesstoken), Web Hosting → Get Asset Upload Access Token). Префикс `GG` или `EAA` задаёт rupload-namespace |
 | `FBINSTANT_ZIP_PATH` **или** `FBINSTANT_ZIP_PATH_DIR` | Путь к исходному `.zip` или к папке с файлами бандла (задаётся ровно одна переменная) |
 
 ### Переменные окружения — только при `PUSH_TO_PRODUCTION=true`
@@ -235,21 +121,19 @@ area: stand, backend_url: https://api.example.dev, commit: abc123, ref: main, cd
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `PUSH_TO_PRODUCTION` | `false` | `true`, `1` или `yes` — вызвать push-to-production после upload |
-| `CHECK_USER_ACCESS_TOKEN` | `true` | `false`, `0`, `no` или `off` — пропустить Graph API `debug_token` перед upload |
+| `CHECK_USER_ACCESS_TOKEN` | `true` | `false`, `0`, `no` или `off` — пропустить Graph API `debug_token` перед upload. Если Facebook вернул ответ без `is_valid`, проверка не блокирует upload |
 | `FB_GRAPH_API_VERSION` | `v26.0` | Версия Graph API для сессии загрузки |
 | `FB_API_RETRIES` | `10` | Максимальное число попыток HTTP-запроса к Facebook API при сетевых ошибках (timeout, разрыв соединения и т.п.) и ответах 5xx. Для upload бандла каждая попытка создаёт новую upload-сессию |
 | `FB_API_RETRY_DELAY_MS` | `1000` | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (1 с → 2 с → 4 с → …) |
 | `FB_API_CONNECT_TIMEOUT_MS` | `30000` | Таймаут установки TCP-соединения |
 | `FB_API_RESPONSE_TIMEOUT_MS` | `600000` | Таймаут ожидания заголовков ответа после отправки тела (включая большой zip) |
 | `FB_API_REQUEST_TIMEOUT_MS` | `600000` | Общий таймаут HTTP-запроса |
-| `DEBUG` | `false` | Отладочные логи в stderr |
+| `DEBUG` | `false` | Подробные логи в stderr, включая HTTP-запросы и ответы (токены маскируются, тело zip не пишется) |
 | `BUILD_ENV_PATH` | — | Путь к файлу `KEY=VALUE` с дополнительными переменными (см. выше) |
 
----
+### Примеры
 
-## Примеры
-
-### Только upload (stand / CI)
+#### Только upload (stand / CI)
 
 App token не нужен.
 
@@ -269,7 +153,7 @@ export COMMENT_CDN_URL=https://cdn.example.dev/
 ./fbi-uploader
 ```
 
-### Upload и push в production
+#### Upload и push в production
 
 ```bash
 export FB_APP_ID=123456789
@@ -283,7 +167,7 @@ export FB_APP_ACCESS_TOKEN=$(FB_APP_ID=$FB_APP_ID FB_APP_SECRET=$FB_APP_SECRET .
 ./fbi-uploader
 ```
 
-### Фрагмент CI pipeline
+#### Фрагмент CI pipeline
 
 ```bash
 # Сборка game.zip выполняется отдельно, затем:
@@ -302,8 +186,6 @@ fi
 ./fbi-uploader
 ```
 
----
-
 ## Docker
 
 Dockerfile: `docker/fbi-uploader/Dockerfile`. Сборка локально:
@@ -314,3 +196,113 @@ docker build -f docker/fbi-uploader/Dockerfile -t fbi-uploader:local .
 
 Образы для CI публикуются в GHCR workflow'ами из `.github/workflows/`.
 
+---
+
+## Дополнительные утилиты
+
+```bash
+go build -o fbi-app-token ./cmd/fbi-app-token
+go build -o fbi-check-token ./cmd/fbi-check-token
+```
+
+### `fbi-app-token`
+
+Запрашивает app access token по схеме [client credentials](https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens).
+
+#### Переменные окружения
+
+| Переменная | Обязательна | Описание |
+|------------|-------------|----------|
+| `FB_APP_ID` | да | Meta App ID |
+| `FB_APP_SECRET` | да | Meta App Secret |
+| `DEBUG` | нет | `true` — подробные логи в stderr, включая HTTP-запросы и ответы (секреты маскируются; по умолчанию: `false`) |
+| `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
+| `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
+| `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
+| `FB_API_RESPONSE_TIMEOUT_MS` | нет | Таймаут ожидания заголовков ответа после отправки тела запроса в миллисекундах (по умолчанию: `600000`) |
+| `FB_API_REQUEST_TIMEOUT_MS` | нет | Общий таймаут HTTP-запроса в миллисекундах (по умолчанию: `600000`) |
+
+#### Вывод
+
+При успехе в stdout печатается **только** access token (без перевода строки в конце). При подстановке через command substitution, если shell добавляет `\n`, используйте `tr -d '\n'`:
+
+```bash
+./fbi-app-token
+```
+
+Ошибки пишутся в stderr; код выхода `1` при сбое.
+
+#### Пример
+
+```bash
+export FB_APP_ID=123456789
+export FB_APP_SECRET=your-app-secret
+./fbi-app-token
+```
+
+Тот же запрос можно сделать вручную:
+
+```bash
+export FB_APP_ID=app_id
+export FB_APP_SECRET=app_secret
+curl -s -G "https://graph.facebook.com/oauth/access_token" \
+  --data-urlencode "client_id=${FB_APP_ID}" \
+  --data-urlencode "client_secret=${FB_APP_SECRET}" \
+  --data-urlencode "grant_type=client_credentials"
+```
+
+Ответ — JSON с полем `access_token`. Токен из ответа:
+
+```bash
+curl -s -G "https://graph.facebook.com/oauth/access_token" \
+  --data-urlencode "client_id=${FB_APP_ID}" \
+  --data-urlencode "client_secret=${FB_APP_SECRET}" \
+  --data-urlencode "grant_type=client_credentials" \
+  | jq -r .access_token
+```
+
+### `fbi-check-token`
+
+Вызывает Graph API [`debug_token`](https://developers.facebook.com/docs/graph-api/reference/debug_token/) тем же способом, что и `fbi-uploader`, но без загрузки бандла и без паузы при просроченном токене.
+
+Нужен только user access token. Zip, `FB_APP_ID` и app secret не требуются.
+
+В запрос уходят `input_token` и `access_token` равные `FB_USER_ACCESS_TOKEN` (как в `fbi-uploader`). App access token не используется: с ним Graph API на `debug_token` отвечает `500 An unknown error occurred`.
+
+По умолчанию вызывается неверсионированный `https://graph.facebook.com/debug_token`. Чтобы сходить на версионированный endpoint, задайте `FB_GRAPH_API_VERSION` (например `v26.0`).
+
+#### Переменные окружения
+
+| Переменная | Обязательна | Описание |
+|------------|-------------|----------|
+| `FB_USER_ACCESS_TOKEN` | да | User access token, который нужно проверить (`input_token` и `access_token`) |
+| `FB_GRAPH_API_VERSION` | нет | Версия Graph API в URL (пусто — неверсионированный endpoint, как в `fbi-uploader`) |
+| `DEBUG` | нет | `true` — подробные логи в stderr, включая HTTP-запросы и ответы (токены маскируются; по умолчанию: `false`) |
+| `FB_API_RETRIES` | нет | Максимальное число попыток HTTP-запроса при сетевых ошибках и ответах 5xx (по умолчанию: `10`) |
+| `FB_API_RETRY_DELAY_MS` | нет | Начальная пауза между попытками в миллисекундах; удваивается после каждой неудачной попытки (по умолчанию: `1000`) |
+| `FB_API_CONNECT_TIMEOUT_MS` | нет | Таймаут установки TCP-соединения в миллисекундах (по умолчанию: `30000`) |
+| `FB_API_RESPONSE_TIMEOUT_MS` | нет | Таймаут ожидания заголовков ответа в миллисекундах (по умолчанию: `600000`) |
+| `FB_API_REQUEST_TIMEOUT_MS` | нет | Общий таймаут HTTP-запроса в миллисекундах (по умолчанию: `600000`) |
+| `BUILD_ENV_PATH` | нет | Путь к файлу `KEY=VALUE` с дополнительными переменными |
+
+#### Вывод
+
+В **stdout** печатается сырое JSON-тело ответа Facebook (pretty-print, если это валидный JSON). Логи статуса — в stderr.
+
+Код выхода `0`, если токен валиден и не истёк, либо в ответе нет полей `is_valid` / `expires_at` (проверка пропускается). `1` — при ошибке HTTP, невалидном JSON, невалидном или истёкшем токене.
+
+#### Пример
+
+```bash
+export FB_USER_ACCESS_TOKEN=EAA...
+go build -o ./fbi-check-token ./cmd/fbi-check-token
+./fbi-check-token
+```
+
+С версией API:
+
+```bash
+export FB_USER_ACCESS_TOKEN=EAA...
+export FB_GRAPH_API_VERSION=v26.0
+./fbi-check-token | jq .
+```

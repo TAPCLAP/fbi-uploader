@@ -7,8 +7,10 @@ var secretSanitizers = []struct {
 	replacement string
 }{
 	{regexp.MustCompile(`(?i)(access_token=)[^&\s"']+`), `${1}[REDACTED]`},
+	{regexp.MustCompile(`(?i)(input_token=)[^&\s"']+`), `${1}[REDACTED]`},
 	{regexp.MustCompile(`(?i)(client_secret=)[^&\s"']+`), `${1}[REDACTED]`},
 	{regexp.MustCompile(`(?i)("access_token"\s*:\s*")[^"]*"`), `${1}[REDACTED]"`},
+	{regexp.MustCompile(`(?i)("input_token"\s*:\s*")[^"]*"`), `${1}[REDACTED]"`},
 	{regexp.MustCompile(`(?i)("client_secret"\s*:\s*")[^"]*"`), `${1}[REDACTED]"`},
 	{regexp.MustCompile(`(?i)OAuth\s+[^\s"']+`), `OAuth [REDACTED]`},
 }

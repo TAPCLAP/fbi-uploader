@@ -16,6 +16,11 @@ func TestSanitizeSecrets(t *testing.T) {
 			want: `Post "https://graph.facebook.com/v26.0/123/uploads?access_token=[REDACTED]&file_name=x.zip": dial tcp: timeout`,
 		},
 		{
+			name: "url input_token",
+			in:   `Get "https://graph.facebook.com/debug_token?access_token=EAAsecret&input_token=EAAsecret": timeout`,
+			want: `Get "https://graph.facebook.com/debug_token?access_token=[REDACTED]&input_token=[REDACTED]": timeout`,
+		},
+		{
 			name: "url client_secret",
 			in:   `Get "https://graph.facebook.com/oauth/access_token?client_id=1&client_secret=topsecret&grant_type=client_credentials": timeout`,
 			want: `Get "https://graph.facebook.com/oauth/access_token?client_id=1&client_secret=[REDACTED]&grant_type=client_credentials": timeout`,
@@ -24,6 +29,11 @@ func TestSanitizeSecrets(t *testing.T) {
 			name: "json access_token",
 			in:   `facebook api error (status 400): {"error":{"message":"bad"},"access_token":"EAAsecret123"}`,
 			want: `facebook api error (status 400): {"error":{"message":"bad"},"access_token":"[REDACTED]"}`,
+		},
+		{
+			name: "json input_token",
+			in:   `{"input_token":"EAAsecret123","error":{"message":"bad"}}`,
+			want: `{"input_token":"[REDACTED]","error":{"message":"bad"}}`,
 		},
 		{
 			name: "oauth user token",
