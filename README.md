@@ -14,11 +14,14 @@ CLI для загрузки бандлов Facebook Instant Games через [д
 ## Документация facebook
 
 1. Как заливать zip архив https://developers.facebook.com/documentation/games/launch/upload-bundle
-1. Как получить app token https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens
+1. Как получить токен для заливки бандла https://developers.facebook.com/documentation/games/launch/upload-bundle#method-2-graph-api-programmatic-upload
 
-Для заливки бандла нужен `user access token`. Для пуша залитого архива в продакшн нужен app access token. User access token можно получить вроде только вручную на странице https://developers.facebook.com/tools/accesstoken.
+Требуется либо `user access token` либо `system user access token`. `user access token` - нельзя сгенерить бесрочно и нельзя автоматически продлевать, генерится он тоже вручную, поэтому лучше использовать `system user access token`. 
+
 
 App access token — [client credentials](https://developers.facebook.com/documentation/facebook-login/guides/access-tokens#apptokens). Его можно получить утилитой [`fbi-app-token`](#fbi-app-token) или вручную (см. ту же секцию).
+
+`App access token` нужен для пуша бандла в продакшн (что на последний момент когда я проверял просто не работало), поэтому токен и не нужен (`PUSH_TO_PRODUCTION` по дефолту выключен)
 
 ## Требования
 
